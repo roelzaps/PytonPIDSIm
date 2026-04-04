@@ -1,0 +1,7 @@
+customtkinter
+numpy
+matplotlib
+scipy
+pylogix
+pymodbus
+asyncua
