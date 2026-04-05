@@ -800,6 +800,23 @@ class PIDSimForCLX:
             plt.suptitle("Live Data")
             plt.legend(loc="upper right")
 
+            # Controls help text in the plot
+            help_text = (
+                "Controls:\n"
+                "  Space ···· Pause / Resume\n"
+                "  ← / → ··· Scroll time\n"
+                "  Home ····· Jump to live\n"
+                "  End ······ Jump to start\n"
+                "  Scroll ··· Zoom in / out\n"
+                "  Hover ···· Inspect values"
+            )
+            self.ax.text(
+                0.01, 0.02, help_text, transform=self.ax.transAxes,
+                fontsize=7, fontfamily="monospace", verticalalignment="bottom",
+                color="#888888", alpha=0.7,
+                bbox=dict(boxstyle="round,pad=0.4", fc="#1a1a1a", ec="#444444", alpha=0.5),
+            )
+
         def animate(i):
             if self._trend_paused:
                 return
