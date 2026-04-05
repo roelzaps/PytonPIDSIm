@@ -203,11 +203,14 @@ class PIDSimForCLX(object):
         row_idx += 1
         
         for name, var_bind, default in [("Gain", "model_gain", "1.45"), ("Time Constant (s)", "model_tc", "62.3"), 
-                                        ("Dead Time (s)", "model_dt", "10.1"), ("Bias", "model_bias", "13.5")]:
+                                        ("Dead Time (s)", "model_dt", "10.1"), ("Bias", "model_bias", "13.5"),
+                                        ("Noise Amplitude (EU)", "model_noise", "0.05")]:
             ctk.CTkLabel(self.main_frame, text=f"{name}:").grid(row=row_idx, column=0, pady=2, sticky=ctk.W)
             entry = ctk.CTkEntry(self.main_frame, width=100)
             entry.insert(0, default)
             entry.grid(row=row_idx, column=1, pady=2, sticky=ctk.W)
+            if var_bind == "model_noise":
+                ctk.CTkLabel(self.main_frame, text="(Adds ± random Noise to PV)", text_color="gray", font=("Arial", 11, "italic")).grid(row=row_idx, column=2, padx=5, pady=2, sticky=ctk.W)
             setattr(self, var_bind, entry)
             row_idx += 1
 
@@ -359,7 +362,16 @@ class PIDSimForCLX(object):
             ts = [self.scan_count, self.scan_count + 1]
             pv_calc = self.process.update(current_pv, ts)
             
-            noise = (random.randint(0, 10) / 100) - 0.05
+            try:
+                noise_amp = float(self.model_noise.get())
+            except ValueError:
+                noise_amp = 0.0
+                
+            if noise_amp > 0:
+                noise = random.uniform(-noise_amp, noise_amp)
+            else:
+                noise = 0.0
+                
             new_pv = pv_calc[0] + noise
             self.PV = np.append(self.PV, new_pv)
             
