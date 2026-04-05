@@ -294,12 +294,12 @@ class TestFOPDTModelSelfRegulating:
 
 
 class TestFOPDTModelIntegrating:
-    """Integrating process: output ramps with CV."""
+    """Integrating process: output ramps relative to balance point."""
 
-    def test_ramps_with_positive_cv(self):
-        """PV should increase continuously with constant positive CV."""
+    def test_ramps_with_cv_above_balance(self):
+        """PV should increase continuously when CV > balance_point."""
         cv_history = [10.0] * 50
-        model = FOPDTModel(cv_history, (1.0, 10.0, 0.0, 0.0), "Integrating")
+        model = FOPDTModel(cv_history, (1.0, 10.0, 0.0, 0.0), "Integrating", balance_point=0.0)
         pv = 0.0
         previous_pv = 0.0
         for i in range(20):
@@ -308,26 +308,67 @@ class TestFOPDTModelIntegrating:
             assert pv > previous_pv  # always increasing
             previous_pv = pv
 
-    def test_zero_cv_holds_steady(self):
-        """With CV=0, integrating process shouldn't move."""
-        cv_history = [0.0] * 50
-        model = FOPDTModel(cv_history, (1.0, 10.0, 0.0, 0.0), "Integrating")
+    def test_cv_at_balance_holds_steady(self):
+        """With CV == balance_point, integrating process shouldn't move."""
+        cv_history = [50.0] * 50
+        model = FOPDTModel(cv_history, (1.0, 10.0, 0.0, 0.0), "Integrating", balance_point=50.0)
         pv = 25.0
         for i in range(20):
             ts = [i, i + 1]
             pv = model.update(pv, ts)[0]
         assert pv == pytest.approx(25.0, abs=0.01)
 
-    def test_negative_cv_ramps_down(self):
-        """Negative CV should cause PV to decrease in integrating mode."""
-        cv_history = [-5.0] * 50
-        model = FOPDTModel(cv_history, (1.0, 10.0, 0.0, 0.0), "Integrating")
-        pv = 50.0
-        for i in range(10):
+    def test_cv_below_balance_ramps_down(self):
+        """CV < balance_point should cause PV to decrease (PV floors at 0)."""
+        cv_history = [40.0] * 50
+        model = FOPDTModel(cv_history, (0.1, 10.0, 0.0, 0.0), "Integrating", balance_point=50.0)
+        pv = 500.0  # high start so we have room to ramp down
+        for i in range(5):
             ts = [i, i + 1]
             new_pv = model.update(pv, ts)[0]
             assert new_pv < pv
             pv = new_pv
+
+
+class TestFOPDTModelBalancePoint:
+    """Balance point — the CV threshold where PV reverses direction."""
+
+    def test_above_balance_ramps_up(self):
+        """CV=80, balance=50 → PV should increase."""
+        cv_history = [80.0] * 50
+        model = FOPDTModel(cv_history, (1.0, 10.0, 0.0, 0.0), "Integrating", balance_point=50.0)
+        pv = 25.0
+        for i in range(10):
+            ts = [i, i + 1]
+            new_pv = model.update(pv, ts)[0]
+            assert new_pv > pv
+            pv = new_pv
+
+    def test_below_balance_ramps_down(self):
+        """CV=20, balance=50 → PV should decrease (PV floors at 0)."""
+        cv_history = [20.0] * 50
+        model = FOPDTModel(cv_history, (0.1, 10.0, 0.0, 0.0), "Integrating", balance_point=50.0)
+        pv = 500.0  # high start so we have room to ramp down
+        for i in range(5):
+            ts = [i, i + 1]
+            new_pv = model.update(pv, ts)[0]
+            assert new_pv < pv
+            pv = new_pv
+
+    def test_at_balance_holds_steady(self):
+        """CV == balance_point → PV should not change."""
+        cv_history = [50.0] * 50
+        model = FOPDTModel(cv_history, (1.0, 10.0, 0.0, 0.0), "Integrating", balance_point=50.0)
+        pv = 75.0
+        for i in range(20):
+            ts = [i, i + 1]
+            pv = model.update(pv, ts)[0]
+        assert pv == pytest.approx(75.0, abs=0.01)
+
+    def test_default_balance_is_50(self):
+        """Default balance_point should be 50.0."""
+        model = FOPDTModel([0.0], (1.0, 10.0, 0.0, 0.0), "Integrating")
+        assert model.balance_point == 50.0
 
 
 class TestFOPDTModelEdgeCases:
